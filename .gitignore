@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Internal working notes (not part of the public submission)
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime artifacts
+logs/
+inventory.db
