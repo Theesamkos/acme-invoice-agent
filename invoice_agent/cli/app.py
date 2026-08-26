@@ -30,6 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--verbose", action="store_true", help="Show full agent traces and LLM reasoning"
     )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Start fresh: clear inventory.db (stock seed + payment ledger) first",
+    )
     return parser
 
 
@@ -175,6 +180,11 @@ def run_batch(deps, verbose: bool) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.reset:
+        from invoice_agent.db import DB_PATH
+
+        DB_PATH.unlink(missing_ok=True)
+        console.print("[dim]Reset: inventory.db cleared (stock re-seeded, ledger emptied)[/]")
     try:
         deps = _make_deps()
     except ConfigError as exc:

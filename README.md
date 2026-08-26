@@ -10,10 +10,12 @@ A multi-agent system that processes invoices end-to-end — **ingestion → vali
 uv sync                          # or: pip install -r requirements.txt
 cp .env.example .env             # add XAI_API_KEY (or OPENAI_API_KEY / ANTHROPIC_API_KEY)
 
-python main.py --invoice_path=data/invoices/invoice_1013.pdf   # one invoice
-python main.py --batch                                         # all invoices + summary
-python main.py --invoice_path=... --verbose                    # full agent traces
+uv run python main.py --invoice_path=data/invoices/invoice_1013.pdf   # one invoice
+uv run python main.py --batch                                         # all invoices + summary
+uv run python main.py --invoice_path=... --verbose                    # full agent traces
 ```
+
+(With pip instead of uv: activate the venv you installed into, then `python main.py ...` directly.)
 
 `inventory.db` is created and seeded automatically on first run. Every terminal verdict appends a full reasoning record to `logs/audit.jsonl`.
 
