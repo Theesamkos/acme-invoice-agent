@@ -1,8 +1,12 @@
 # Acme Invoice Agent
 
+[![CI](https://github.com/Theesamkos/acme-invoice-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Theesamkos/acme-invoice-agent/actions/workflows/ci.yml)
+
 A multi-agent system that processes invoices end-to-end — **ingestion → validation → approval → payment** — built with LangGraph and xAI Grok, running entirely locally.
 
 > Acme Corp loses **$2M/year** to a 30% invoice error rate and 5-day processing delays. This pipeline reads any invoice format, validates it against inventory, simulates VP approval with a self-critique loop, and pays or rejects with a full audit trail — in seconds per invoice.
+
+![A real run: invoice 1013's padded grand total caught and rejected](docs/assets/demo.svg)
 
 ## Quickstart
 
