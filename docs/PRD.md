@@ -111,13 +111,13 @@ The system is **done** when batch mode produces these outcomes:
 | Invoice | Planted trap | Expected outcome |
 |---|---|---|
 | 1001, 1011, 1015 | clean | **PAID** |
-| 1002 | typos; 20× GadgetX vs 5 stock; due = invoice date | **REJECTED** — insufficient stock; date anomaly flagged |
+| 1002 | typos; 20× GadgetX vs 5 stock; due = invoice date; $15,000 > $10K | **REJECTED** — insufficient stock; escalated; date anomaly flagged |
 | 1003 | fraud vendor, FakeItem, past due, urgency language | **REJECTED** — fraud score critical; injection attempt neutralized |
 | 1004 | duplicate | **SUPERSEDED** — no payment |
 | 1004_revised | replacement | **PAID** (or rejected on merits) — exactly one payment for invoice 1004 |
-| 1005 | $15,225 > $10K; fake address | **ESCALATED** → rejected on address+amount signals |
+| 1005 | $15,225 > $10K; fake address; GadgetX 8 vs 5 stock | **ESCALATED** → rejected on stock + address + amount signals |
 | 1006 | key-value CSV, repeated keys | parsed correctly → verdict on merits |
-| 1007 | multi-row CSV; $15,525 > $10K | **ESCALATED** → extra scrutiny visible in trace |
+| 1007 | multi-row CSV; $15,525 > $10K; stock shortfalls (WidgetA 20 vs 15, WidgetB 15 vs 10); hidden −$110 total error (14,750 + 885 tax ≠ 15,525) | **REJECTED** — escalated; stock + math discrepancy both cited |
 | 1008 | email body; unknown items | **REJECTED** — items not in inventory |
 | 1009 | negative qty, blank vendor, −$250 total, bad subtotal | **REJECTED** — multiple integrity failures enumerated |
 | 1010 | same item two prices; shipping line | **PAID** — dual pricing noted; shipping excluded from inventory check |

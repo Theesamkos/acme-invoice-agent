@@ -25,6 +25,8 @@ The sample data plants traps; the pipeline catches all of them. Two highlights:
 
 **The padded grand total (INV-1013).** Line items + 7% tax = $22,512.80, but the invoice states $22,562.80. The math cross-check recomputes every figure from the line items and flags the **+$50.00 delta** — in both the PDF and JSON versions. (It also catches that the split lines aggregate to 22× WidgetA against 15 in stock.)
 
+**The trap nobody planted a sign for (INV-1007).** During development, the pipeline rejected 1007 with a `total_mismatch` I hadn't expected: subtotal $14,750 + 6% tax ($885) = **$15,635**, but the invoice states **$15,525** — a real −$110 error hiding in the sample data. I had hand-verified this invoice twice and missed it both times. Deterministic recomputation doesn't get tired.
+
 The full trap coverage:
 
 | Trap | Invoice | Catch |
@@ -34,7 +36,7 @@ The full trap coverage:
 | Duplicate invoice number | 1004 + revision | exactly one payment |
 | >$10K + landmark vendor address | 1005 | escalated; rejected (also 8× GadgetX vs 5 stock) |
 | Key-value CSV with repeated keys | 1006 | parsed; paid |
-| >$10K multi-row CSV | 1007 | escalated; stock shortfalls rejected |
+| >$10K multi-row CSV + hidden −$110 total error | 1007 | escalated; stock shortfalls and the math discrepancy both rejected |
 | Unknown items (SuperGizmo…) | 1008 | rejected — not in inventory |
 | Negative qty, blank vendor, −$250 total | 1009 | every integrity failure enumerated |
 | Same item at two prices + shipping line | 1010 | recomputed correctly; paid |
@@ -42,6 +44,38 @@ The full trap coverage:
 | Grand total padded +$50; 22× WidgetA across split lines | 1013 | both caught, in both file formats |
 | EUR currency | 1014 | converted at documented fixed rate; paid |
 | Unknown sibling SKU (WidgetC) | 1016 | rejected — fuzzy matcher deliberately tuned so WidgetC ≠ WidgetA |
+
+## The batch run, for real
+
+Actual output from `python main.py --batch` over all 20 sample files:
+
+```
+Dedup scan: 20 file(s), 4 superseded/duplicate
+ ✓ PAID       invoice_1001.txt             clean
+ ✗ REJECTED   invoice_1002.txt             insufficient_stock: GadgetX: requested 20 exceeds stock of 5
+ ✗ REJECTED   invoice_1003.txt             unparseable_due_date: Due date 'yesterday' is not a parseable date
+ ↺ SUPERSEDED invoice_1004.json            Superseded by revision 'R1' (invoice_1004_revised.json); not paid
+ ✓ PAID       invoice_1004_revised.json    clean
+ ✗ REJECTED   invoice_1005.json            insufficient_stock: GadgetX: requested 8 exceeds stock of 5
+ ✓ PAID       invoice_1006.csv             clean
+ ✗ REJECTED   invoice_1007.csv             total_mismatch: Stated grand total $15,525.00 != recomputed $15,635.00
+ ✗ REJECTED   invoice_1008.txt             unknown_item: Item 'SuperGizmo' is not in inventory
+ ✗ REJECTED   invoice_1009.json            missing_due_date: Invoice states no due date
+ ✓ PAID       invoice_1010.txt             clean
+ ✓ PAID       invoice_1011.pdf             clean
+ ≡ DUPLICATE  invoice_1011.txt             Same invoice and revision as invoice_1011.pdf; not paid twice
+ ✓ PAID       invoice_1012.pdf             clean
+ ≡ DUPLICATE  invoice_1012.txt             Same invoice and revision as invoice_1012.pdf; not paid twice
+ ✗ REJECTED   invoice_1013.json            total_mismatch: Stated grand total $22,562.80 != recomputed $22,512.80
+ ≡ DUPLICATE  invoice_1013.pdf             Same invoice and revision as invoice_1013.json; not paid twice
+ ✓ PAID       invoice_1014.xml             clean
+ ✓ PAID       invoice_1015.csv             clean
+ ✗ REJECTED   invoice_1016.json            unknown_item: Item 'WidgetC' is not in inventory
+
+ Paid: 8 invoice(s), $44,887.50   Blocked: 12 invoice(s)   Dollars protected: $218,873.60
+```
+
+Every rejection carries a full reasoning chain in `logs/audit.jsonl`. Against Acme's $2M/year loss baseline, one batch of 16 invoices blocked **$218K** of erroneous, duplicate, and fraudulent payments.
 
 ## Architecture
 
@@ -91,11 +125,14 @@ EUR→USD uses a fixed documented rate (1.10) — no live FX in a local pipeline
 ## Testing
 
 ```bash
-pytest              # 55 offline tests: parsers, matching, math, fraud, dedup,
+pytest              # 56 offline tests: parsers, matching, math, fraud, dedup,
                     # approval guardrails, full pipeline against a scripted fake LLM
-pytest -m live      # the PRD trap matrix, executed end-to-end with real LLM calls:
-                    # every sample invoice asserted against its expected verdict
+pytest -m live      # 24 live assertions: the PRD trap matrix executed end-to-end
+                    # with real LLM calls -- every file asserted against its
+                    # expected verdict and key findings (last run: 24/24 in ~7 min)
 ```
+
+CI runs the offline suite + lint on every push.
 
 ## Scope decisions
 
