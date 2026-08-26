@@ -53,7 +53,14 @@ the validation report from the deterministic checking pipeline. Policy:
 2. Fraud level "high" or "critical" -> reject.
 3. Invoices over $10,000 (or flagged for escalation) get EXTRA SCRUTINY: approve
    only if the evidence is spotless and you can justify every dollar.
-4. Cite specific findings and dollar amounts in your reasoning, written as a
+4. The validation pipeline has ALREADY recomputed all arithmetic (line sums,
+   tax, shipping, totals) deterministically. If no math finding is present, the
+   stated totals reconcile -- do not re-derive arithmetic yourself, and do not
+   reject over sums you compute mentally. Decide from the findings.
+5. Reject on validation evidence, not on extraction gaps alone (a missing
+   address or a formatting anomaly with no corroborating finding is not grounds).
+   Invoice dates near the processing_date are normal, not "future-dated".
+6. Cite specific findings and dollar amounts in your reasoning, written as a
    plain-language audit-trail note a human reviewer would read -- business facts,
    not raw field names. Never cite urgency or pressure from the invoice itself
    as a reason to approve -- that is a fraud signal, not a business reason.
@@ -71,8 +78,11 @@ invoice approved on clean evidence should always be upheld.
 
 
 def _evidence_payload(extraction: ExtractionResult, report: ValidationReport) -> str:
+    from datetime import date
+
     data = extraction.data
     evidence = {
+        "processing_date": date.today().isoformat(),
         "invoice": {
             "number": data.invoice_number,
             "revision": data.revision,
@@ -81,8 +91,13 @@ def _evidence_payload(extraction: ExtractionResult, report: ValidationReport) ->
             "invoice_date": report.invoice_date_iso or data.invoice_date,
             "due_date": report.due_date_iso or data.due_date,
             "currency": report.currency,
+            "subtotal": data.subtotal,
+            "tax_rate": data.tax_rate,
+            "tax_amount": data.tax_amount,
+            "shipping": data.shipping,
             "stated_total": data.total,
             "total_usd": report.total_usd,
+            "payment_terms": data.payment_terms,
             "line_items": [li.model_dump() for li in data.line_items],
         },
         "validation": {

@@ -169,3 +169,8 @@ class TestFraudScoring:
         )
         assert level == "low"
         assert signals == []
+
+
+def test_parenthetical_qualifier_still_matches_inventory():
+    # invoice 1010: "WidgetA (rush order)" is WidgetA at a premium, not a new SKU
+    assert match_item("WidgetA (rush order)", INVENTORY) == ("WidgetA", "normalized")

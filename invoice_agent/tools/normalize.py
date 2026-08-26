@@ -32,6 +32,10 @@ def match_item(requested: str, inventory_items: list[str]) -> tuple[str | None, 
         return requested, "exact"
     if norm in by_normalized:
         return by_normalized[norm], "normalized"
+    # deterministic backstop: "WidgetA (rush order)" is WidgetA with a qualifier
+    stripped = normalize_item_name(re.sub(r"\(.*?\)", "", requested))
+    if stripped != norm and stripped in by_normalized:
+        return by_normalized[stripped], "normalized"
     best_score, best_item = 0.0, None
     for norm_name, original in by_normalized.items():
         score = fuzz.ratio(norm, norm_name)
