@@ -125,6 +125,9 @@ EUR→USD uses a fixed documented rate (1.10) — no live FX in a local pipeline
 ## Testing
 
 ```bash
+# with uv: deps are already there via `uv sync`
+# with pip: pip install -r requirements-dev.txt
+
 pytest              # 56 offline tests: parsers, matching, math, fraud, dedup,
                     # approval guardrails, full pipeline against a scripted fake LLM
 pytest -m live      # 24 live assertions: the PRD trap matrix executed end-to-end
