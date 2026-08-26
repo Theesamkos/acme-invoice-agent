@@ -57,9 +57,7 @@ def test_self_correction_loop_feeds_errors_back():
             self.chat.completions = FakeCompletions(replies)
 
     client = FakeClient(['{"name": "x"}', '{"name": "x", "value": 2}'])
-    result, attempts, corrections = complete_structured(
-        client, "m", "sys", "user", _Toy
-    )
+    result, attempts, corrections = complete_structured(client, "m", "sys", "user", _Toy)
     assert result == _Toy(name="x", value=2)
     assert attempts == 2
     assert len(corrections) == 1

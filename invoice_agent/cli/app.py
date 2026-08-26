@@ -12,7 +12,7 @@ console = Console()
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="main.py",
-        description="Process invoices through the ingestion -> validation -> approval -> payment pipeline.",
+        description="Process invoices: ingestion -> validation -> approval -> payment.",
     )
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument("--invoice_path", help="Path to a single invoice file to process")
@@ -28,7 +28,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     console.print(
-        "[yellow]Pipeline not wired up yet[/] -- scaffolding stage. "
-        f"Parsed arguments: {vars(args)}"
+        f"[yellow]Pipeline not wired up yet[/] -- scaffolding stage. Parsed arguments: {vars(args)}"
     )
     return 0

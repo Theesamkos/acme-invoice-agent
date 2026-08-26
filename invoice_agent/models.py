@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
 
@@ -58,3 +60,51 @@ class ExtractionResult(BaseModel):
     correction_notes: list[str] = Field(
         default_factory=list, description="Validation errors that triggered extraction retries"
     )
+
+
+# --- Validation stage -------------------------------------------------------
+
+
+class Severity(StrEnum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+class Finding(BaseModel):
+    """One validation observation, machine-coded and human-readable."""
+
+    code: str
+    severity: Severity
+    message: str
+
+
+class StockCheck(BaseModel):
+    """Inventory verdict for one aggregated invoice item."""
+
+    requested_item: str
+    matched_item: str | None
+    match_type: str  # exact | normalized | fuzzy | unknown
+    requested_qty: float
+    available: int | None
+    sufficient: bool | None
+
+
+class ValidationReport(BaseModel):
+    findings: list[Finding] = Field(default_factory=list)
+    stock_checks: list[StockCheck] = Field(default_factory=list)
+    fraud_score: int = 0
+    fraud_signals: list[str] = Field(default_factory=list)
+    fraud_level: str = "low"  # low | elevated | high | critical
+    currency: str = "USD"
+    exchange_rate: float = 1.0
+    total_usd: float | None = None
+    requires_escalation: bool = False
+    dedup_status: str = "new"  # new | duplicate | supersedes_paid | superseded
+    invoice_date_iso: str | None = None
+    due_date_iso: str | None = None
+
+    @property
+    def blocking_findings(self) -> list[Finding]:
+        return [f for f in self.findings if f.severity in (Severity.ERROR, Severity.CRITICAL)]
