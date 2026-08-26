@@ -13,6 +13,7 @@ cp .env.example .env             # add XAI_API_KEY (or OPENAI_API_KEY / ANTHROPI
 uv run python main.py --invoice_path=data/invoices/invoice_1013.pdf   # one invoice
 uv run python main.py --batch                                         # all invoices + summary
 uv run python main.py --invoice_path=... --verbose                    # full agent traces
+uv run python main.py --reset --batch                                 # clear db/ledger first
 ```
 
 (With pip instead of uv: activate the venv you installed into, then `python main.py ...` directly.)
@@ -21,7 +22,7 @@ uv run python main.py --invoice_path=... --verbose                    # full age
 
 ## What it catches
 
-The sample data plants traps; the pipeline catches all of them. Two highlights:
+The sample data plants traps; the pipeline catches all of them. Three highlights:
 
 **The duplicate invoice (INV-1004).** Two files share one invoice number — an original and a revision. The batch dedup planner groups by invoice number *before* any payment decision: the revision is paid once, the original is marked `SUPERSEDED`, and cross-format copies of the same invoice (1011, 1012, 1013 each arrive twice) are marked `DUPLICATE`. **An invoice number can never be paid twice.**
 
@@ -49,7 +50,7 @@ The full trap coverage:
 
 ## The batch run, for real
 
-Actual output from `python main.py --batch` over all 20 sample files:
+Actual output from `uv run python main.py --batch` over all 20 sample files:
 
 ```
 Dedup scan: 20 file(s), 4 superseded/duplicate
@@ -152,6 +153,7 @@ invoice_agent/
   llm.py                    # structured-output helper with self-correction
   models.py                 # Pydantic data models
   db.py                     # SQLite bootstrap: inventory + payment ledger
+  audit.py                  # append-only JSONL audit trail
   graph.py                  # LangGraph pipeline + runner (timings, audit, ledger)
   agents/                   # ingestion · validation · approval · payment
   tools/                    # parsers · normalize · math_check · fraud

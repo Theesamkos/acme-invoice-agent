@@ -5,11 +5,12 @@ Multi-agent invoice processing pipeline for the Acme Corp case. Read `docs/PRD.m
 ## Commands
 
 ```bash
-uv sync                                             # install deps (or: pip install -r requirements.txt)
-python main.py --invoice_path=data/invoices/<file>  # process one invoice
-python main.py --batch                              # process all invoices + summary table
-pytest                                              # run tests
-ruff check . && ruff format --check .               # lint / format
+uv sync                                                    # install deps (or: pip install -r requirements-dev.txt)
+uv run python main.py --invoice_path=data/invoices/<file>  # process one invoice
+uv run python main.py --batch                              # process all invoices + summary table
+uv run python main.py --reset --batch                      # clear inventory.db/ledger first
+uv run pytest                                              # offline tests; add -m live for the real-LLM trap matrix
+uv run ruff check . && uv run ruff format --check .        # lint / format
 ```
 
 ## Layout
