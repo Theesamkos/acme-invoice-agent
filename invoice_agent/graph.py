@@ -133,7 +133,8 @@ def process_invoice(
             start = time.perf_counter()
             for step in compiled.stream(state, stream_mode="updates"):
                 for node_name, update in step.items():
-                    state.update(update)
+                    if update:  # a no-op node (pre-seeded extraction) yields None
+                        state.update(update)
                     timings[node_name] = time.perf_counter() - start
                     start = time.perf_counter()
                     if on_stage:

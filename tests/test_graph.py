@@ -118,3 +118,20 @@ def test_pipeline_failure_is_isolated(deps_factory):
     # audit still written for the failure
     record = json.loads(deps.audit_path.read_text().splitlines()[0])
     assert record["verdict"] == "FAILED"
+
+
+def test_batch_path_with_preseeded_extraction(deps_factory, capsys):
+    """Batch mode seeds extraction before the graph runs; ingestion must no-op cleanly."""
+    from invoice_agent.models import ExtractionResult
+
+    extraction = ExtractionResult(
+        data=InvoiceData.model_validate_json(_clean_extraction_json()),
+        source_file="data/invoices/invoice_1001.txt",
+        source_format="txt",
+    )
+    deps = deps_factory([_vp("approve"), _critic(True)])  # NO extraction reply needed
+    state, timings = process_invoice(
+        deps, "data/invoices/invoice_1001.txt", extraction=extraction
+    )
+    assert state["verdict"] == "PAID"
+    assert "Paid 5000.0 to Widgets Inc." in capsys.readouterr().out
