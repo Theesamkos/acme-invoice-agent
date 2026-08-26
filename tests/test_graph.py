@@ -130,8 +130,6 @@ def test_batch_path_with_preseeded_extraction(deps_factory, capsys):
         source_format="txt",
     )
     deps = deps_factory([_vp("approve"), _critic(True)])  # NO extraction reply needed
-    state, timings = process_invoice(
-        deps, "data/invoices/invoice_1001.txt", extraction=extraction
-    )
+    state, timings = process_invoice(deps, "data/invoices/invoice_1001.txt", extraction=extraction)
     assert state["verdict"] == "PAID"
     assert "Paid 5000.0 to Widgets Inc." in capsys.readouterr().out
