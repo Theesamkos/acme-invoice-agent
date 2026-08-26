@@ -103,7 +103,7 @@ def test_superseded_short_circuit(deps_factory):
         deps,
         "data/invoices/invoice_1004.json",
         extraction=extraction,
-        superseded_by="invoice_1004_revised.json",
+        skip=("SUPERSEDED", "Superseded by invoice_1004_revised.json; not paid"),
     )
     assert state["verdict"] == "SUPERSEDED"
     assert deps.client.calls == []

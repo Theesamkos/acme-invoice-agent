@@ -42,3 +42,19 @@ def test_model_override_applies_to_detected_provider():
 def test_no_key_raises_actionable_error():
     with pytest.raises(ConfigError, match="XAI_API_KEY"):
         resolve_llm_settings({})
+
+
+def test_xai_default_uses_fast_extraction_model():
+    settings = resolve_llm_settings({"XAI_API_KEY": "k"})
+    assert settings.extraction_model == "grok-4.20-0309-non-reasoning"
+
+
+def test_model_override_resets_extraction_model_to_match():
+    settings = resolve_llm_settings({"XAI_API_KEY": "k", "LLM_MODEL": "grok-4.5"})
+    assert settings.extraction_model == "grok-4.5"
+
+
+def test_explicit_extraction_model_wins():
+    settings = resolve_llm_settings({"XAI_API_KEY": "k", "LLM_EXTRACTION_MODEL": "grok-4.3"})
+    assert settings.model == "grok-4.6"
+    assert settings.extraction_model == "grok-4.3"

@@ -28,13 +28,20 @@ class LLMSettings:
     base_url: str
     model: str
     provider: str
+    # Extraction is high-volume and doesn't need deep reasoning; measured on the
+    # sample data, xAI's non-reasoning model is ~11x faster with equal accuracy.
+    extraction_model: str = ""
+
+    def __post_init__(self):
+        if not self.extraction_model:
+            object.__setattr__(self, "extraction_model", self.model)
 
 
 _PROVIDERS = [
-    # (env var, provider name, base_url, default model)
-    ("XAI_API_KEY", "xai", "https://api.x.ai/v1", "grok-4.6"),
-    ("OPENAI_API_KEY", "openai", "https://api.openai.com/v1", "gpt-4o-mini"),
-    ("ANTHROPIC_API_KEY", "anthropic", "https://api.anthropic.com/v1/", "claude-opus-5"),
+    # (env var, provider name, base_url, default model, default extraction model)
+    ("XAI_API_KEY", "xai", "https://api.x.ai/v1", "grok-4.6", "grok-4.20-0309-non-reasoning"),
+    ("OPENAI_API_KEY", "openai", "https://api.openai.com/v1", "gpt-4o-mini", ""),
+    ("ANTHROPIC_API_KEY", "anthropic", "https://api.anthropic.com/v1/", "claude-opus-5", ""),
 ]
 
 _NO_KEY_MESSAGE = """\
@@ -62,16 +69,27 @@ def resolve_llm_settings(env: dict[str, str] | None = None) -> LLMSettings:
         model = env.get("LLM_MODEL")
         if not (base_url and model):
             raise ConfigError("LLM_API_KEY is set but LLM_BASE_URL or LLM_MODEL is missing.")
-        return LLMSettings(api_key=explicit_key, base_url=base_url, model=model, provider="custom")
+        return LLMSettings(
+            api_key=explicit_key,
+            base_url=base_url,
+            model=model,
+            provider="custom",
+            extraction_model=env.get("LLM_EXTRACTION_MODEL", ""),
+        )
 
-    for env_var, provider, base_url, default_model in _PROVIDERS:
+    for env_var, provider, base_url, default_model, default_extraction in _PROVIDERS:
         key = env.get(env_var)
         if key:
+            model = env.get("LLM_MODEL", default_model)
             return LLMSettings(
                 api_key=key,
                 base_url=base_url,
-                model=env.get("LLM_MODEL", default_model),
+                model=model,
                 provider=provider,
+                extraction_model=env.get(
+                    "LLM_EXTRACTION_MODEL",
+                    default_extraction if model == default_model else "",
+                ),
             )
 
     raise ConfigError(_NO_KEY_MESSAGE)

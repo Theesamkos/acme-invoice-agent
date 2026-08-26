@@ -40,13 +40,17 @@ class PipelineDeps:
     model: str
     conn: sqlite3.Connection
     audit_path: Path = field(default_factory=lambda: audit.AUDIT_PATH)
+    extraction_model: str = ""  # defaults to `model`
+
+    def __post_init__(self):
+        self.extraction_model = self.extraction_model or self.model
 
 
 def build_graph(deps: PipelineDeps):
     def ingestion_node(state: PipelineState) -> PipelineState:
         if "extraction" in state:  # batch mode pre-extracts during the dedup scan
             return {}
-        return {"extraction": ingest(deps.client, deps.model, state["invoice_path"])}
+        return {"extraction": ingest(deps.client, deps.extraction_model, state["invoice_path"])}
 
     def validation_node(state: PipelineState) -> PipelineState:
         return {"report": validate(state["extraction"], deps.conn)}
@@ -104,25 +108,25 @@ def process_invoice(
     deps: PipelineDeps,
     invoice_path: str,
     extraction: ExtractionResult | None = None,
-    superseded_by: str | None = None,
+    skip: tuple[str, str] | None = None,
     on_stage=None,
 ) -> tuple[PipelineState, dict[str, float]]:
     """Run one invoice to a terminal verdict; record ledger + audit.
 
-    `superseded_by` short-circuits the pipeline (batch dedup planner decided an
-    earlier revision must not be paid). `on_stage(name, state)` is an optional
-    UI callback fired after each node completes.
+    `skip=(verdict, reason)` short-circuits the pipeline -- used by the batch
+    dedup planner for SUPERSEDED revisions and cross-format DUPLICATE copies,
+    which must never be paid. `on_stage(name, state)` is an optional UI
+    callback fired after each node completes.
     """
     timings: dict[str, float] = {}
     state: PipelineState = {"invoice_path": invoice_path}
     if extraction is not None:
         state["extraction"] = extraction
 
-    if superseded_by is not None:
-        state["verdict"] = "SUPERSEDED"
-        state["error"] = f"Superseded by {superseded_by}; not paid"
+    if skip is not None:
+        state["verdict"], state["error"] = skip
         if on_stage:
-            on_stage("superseded", state)
+            on_stage("skipped", state, 0.0)
     else:
         compiled = build_graph(deps)
         try:
@@ -133,16 +137,17 @@ def process_invoice(
                     timings[node_name] = time.perf_counter() - start
                     start = time.perf_counter()
                     if on_stage:
-                        on_stage(node_name, state)
+                        on_stage(node_name, state, timings[node_name])
         except Exception as exc:  # noqa: BLE001 -- batch isolation: any failure -> FAILED verdict
             state["verdict"] = "FAILED"
             state["error"] = f"{type(exc).__name__}: {exc}"
             if on_stage:
-                on_stage("failed", state)
+                on_stage("failed", state, 0.0)
 
     data = state["extraction"].data if "extraction" in state else None
     report = state.get("report")
-    if data and data.invoice_number and state.get("verdict") in ("PAID", "REJECTED", "SUPERSEDED"):
+    terminal = ("PAID", "REJECTED", "SUPERSEDED", "DUPLICATE")
+    if data and data.invoice_number and state.get("verdict") in terminal:
         db.record_verdict(
             deps.conn,
             data.invoice_number,
