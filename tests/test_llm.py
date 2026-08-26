@@ -1,7 +1,8 @@
 import pytest
+from conftest import FakeClient
 from pydantic import BaseModel
 
-from invoice_agent.llm import _parse_json_reply
+from invoice_agent.llm import _parse_json_reply, complete_structured
 
 
 class _Toy(BaseModel):
@@ -28,39 +29,19 @@ def test_unparseable_reply_raises():
 
 def test_self_correction_loop_feeds_errors_back():
     """A client that returns junk then valid JSON should succeed on attempt 2."""
-    from invoice_agent.llm import complete_structured
-
-    class FakeMessage:
-        def __init__(self, content):
-            self.content = content
-
-    class FakeChoice:
-        def __init__(self, content):
-            self.message = FakeMessage(content)
-
-    class FakeResponse:
-        def __init__(self, content):
-            self.choices = [FakeChoice(content)]
-
-    class FakeCompletions:
-        def __init__(self, replies):
-            self.replies = list(replies)
-            self.calls = []
-
-        def create(self, **kwargs):
-            self.calls.append(kwargs)
-            return FakeResponse(self.replies.pop(0))
-
-    class FakeClient:
-        def __init__(self, replies):
-            self.chat = type("Chat", (), {})()
-            self.chat.completions = FakeCompletions(replies)
-
     client = FakeClient(['{"name": "x"}', '{"name": "x", "value": 2}'])
     result, attempts, corrections = complete_structured(client, "m", "sys", "user", _Toy)
     assert result == _Toy(name="x", value=2)
     assert attempts == 2
     assert len(corrections) == 1
     # the retry message must contain the validation error for self-correction
-    retry_messages = client.chat.completions.calls[1]["messages"]
+    retry_messages = client.calls[1]["messages"]
     assert any("value" in str(m.get("content", "")) for m in retry_messages[-1:])
+
+
+def test_retry_budget_exhaustion_raises():
+    from invoice_agent.llm import ExtractionFailedError
+
+    client = FakeClient(["junk", "more junk", "still junk"])
+    with pytest.raises(ExtractionFailedError):
+        complete_structured(client, "m", "sys", "user", _Toy)
